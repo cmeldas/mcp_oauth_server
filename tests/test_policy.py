@@ -90,6 +90,29 @@ class TestPolicy(TransactionCase):
         with self.assertRaises(PolicyError):
             policy.check_domain(ctx, "res.partner", [["user_ids.password", "=", "x"]])
         policy.check_domain(ctx, "res.partner", ["|", ["name", "ilike", "kůň"], ["parent_id.name", "=", "x"]])
+        _result, status, message = self.call(ctx, "search_read", model="res.partner", fields=["comment"])
+        self.assertEqual(status, "denied")
+        self.assertIn("exist but cannot be read", message)
+
+    def test_unknown_field_is_error_with_suggestions(self):
+        """Neexistující pole (překlep, název ze starší verze Odoo) je chyba s podobnými názvy, ne odmítnutí."""
+        ctx = self.ctx(write=False)
+        _result, status, message = self.call(ctx, "search_read", model="res.partner",
+                                             fields=["name", "partner_country_id"])
+        self.assertEqual(status, "error")
+        self.assertIn("Field partner_country_id does not exist on model res.partner.", message)
+        self.assertIn("Similar fields: country_id (Country)", message)
+        self.assertNotIn("hidden", message)
+        _result, status, message = self.call(ctx, "count_records", model="res.partner",
+                                             domain=[["parent_id.e_mail", "=", "x"]])
+        self.assertEqual(status, "error")
+        self.assertIn("Field e_mail does not exist on model res.partner. Similar fields: email (Email)", message)
+        _result, status, message = self.call(ctx, "search_read", model="res.partner", fields=["xyz"], order="xyz")
+        self.assertEqual(message, "Field xyz does not exist on model res.partner. "
+                                  "describe_model lists all available fields.")
+        self.env["ir.model.fields"]._get("res.partner", "comment").mcp_hidden = True
+        self.assertNotIn("comment", policy.similar_fields(self.ctx(), "res.partner", "coment"),
+                         "skryté pole se nenabízí")
 
     def test_search_read_tool(self):
         result, status, _message = self.call(self.ctx(write=False), "search_read", model="res.partner",
@@ -185,6 +208,14 @@ class TestPolicy(TransactionCase):
         _result, status, message = self.call(ctx, "update_record", model="res.partner", ids=[self.partner.id],
                                              values={"child_ids": [[0, 0, {"name": "Nový", "comment": "x"}]]})
         self.assertEqual(status, "denied", message)
+        # neexistující pole je chyba i u zápisu, i ve vnořených řádcích
+        _result, status, message = self.call(ctx, "update_record", model="res.partner", ids=[self.partner.id],
+                                             values={"e_mail": "x@dodavatel.test"})
+        self.assertEqual(status, "error", message)
+        self.assertIn("email (Email)", message)
+        _result, status, message = self.call(ctx, "update_record", model="res.partner", ids=[self.partner.id],
+                                             values={"child_ids": [[0, 0, {"name": "Nový", "e_mail": "x"}]]})
+        self.assertEqual(status, "error", message)
         # náhled nic neuloží
         result, status, message = self.call(ctx, "create_record", model="res.partner",
                                             values={"name": "Jen náhled"}, preview=True)
@@ -253,14 +284,19 @@ class TestPolicy(TransactionCase):
             rule.with_context(mcp_request=False).with_user(self.env.ref("base.public_user")).action_approve()
 
     def test_proposal_validation(self):
+        self.env["ir.model.fields"]._get("res.partner", "comment").mcp_hidden = True
         ctx = self.ctx()
+        _result, status, message = self.call(ctx, "propose_rule", name="X", reason="test", models=["res.partner"],
+                                             operations=["write"], fields={"res.partner": ["password"]})
+        self.assertEqual(status, "error", "res.partner pole password nemá")
+        self.assertIn("does not exist", message)
         for arguments, expected in (
             ({"models": ["ir.config_parameter"], "operations": ["write"]}, "is not available via MCP"),
             ({"app": "Neexistující aplikace", "operations": ["write"]}, "Available apps"),
             ({"models": ["res.partner"], "operations": ["fly"]}, "operations"),
             ({"models": ["res.partner"], "operations": []}, "has to allow something"),
             ({"models": ["res.partner"], "operations": ["write"], "fields": {"res.users": ["name"]}}, "does not cover"),
-            ({"models": ["res.partner"], "operations": ["write"], "fields": {"res.partner": ["password"]}}, "hidden"),
+            ({"models": ["res.partner"], "operations": ["write"], "fields": {"res.partner": ["comment"]}}, "hidden"),
             ({"models": ["res.partner"], "actions": ["unlink"]}, "actions"),
             ({"models": ["res.partner"], "operations": ["write"], "domain": "name = x"}, "domain"),
         ):

@@ -10,6 +10,7 @@
 """
 import re
 from dataclasses import dataclass, field as dc_field
+from difflib import SequenceMatcher
 
 from odoo.tools import SQL
 from odoo.tools.translate import LazyTranslate
@@ -94,6 +95,10 @@ class PolicyError(Exception):
 
     def __str__(self):
         return " ".join(dict.fromkeys(in_english(arg) for arg in self.args))
+
+
+class UnknownFieldError(PolicyError):
+    """Pole na modelu vůbec není (překlep, název ze starší verze Odoo). V auditu chyba, ne odmítnutí."""
 
 
 @dataclass
@@ -298,14 +303,59 @@ def default_fields(ctx: McpContext, model_name: str, limit: int = 30) -> list[st
     return ["display_name"] + names[:limit]
 
 
+def similar_fields(ctx: McpContext, model_name: str, fname: str, limit: int = 3) -> list[str]:
+    """Pole, která AI nejspíš myslela: podobný název nebo stejné poslední slovo (`product_uom_id` → `uom_id`).
+
+    Nabízí jen pole čitelná přes MCP, aby hláška neprozradila skrytá.
+    """
+    def words(name):
+        return [part for part in name.split("_") if part and part not in ("id", "ids")]
+    wanted = words(fname)
+    scored = []
+    for name in readable_fields(ctx, model_name):
+        have = words(name)
+        score = SequenceMatcher(None, fname, name).ratio()
+        if set(wanted) & set(have):
+            score += 0.2
+        if wanted and have and wanted[-1] == have[-1]:
+            score += 0.4
+        if fname.endswith("_" + name) or name.endswith("_" + fname) or (have and set(have) <= set(wanted)):
+            score += 0.3
+        if score >= 0.6:
+            scored.append((-score, name))
+    return [name for _score, name in sorted(scored)[:limit]]
+
+
+def unknown_fields(ctx: McpContext, model_name: str, names) -> UnknownFieldError:
+    model = ctx.env[model_name]
+    texts = []
+    for name in names:
+        similar = similar_fields(ctx, model_name, name)
+        if similar:
+            labels = ", ".join(f"{s} ({model._fields[s].get_description(ctx.env, ['string'])['string']})"
+                               for s in similar)
+            texts.append(_lt("Field %(field)s does not exist on model %(model)s. Similar fields: %(similar)s.",
+                             field=name, model=model_name, similar=labels))
+        else:
+            texts.append(_lt("Field %(field)s does not exist on model %(model)s.", field=name, model=model_name))
+    return UnknownFieldError(*texts, _lt("describe_model lists all available fields."))
+
+
+def require_known_fields(ctx: McpContext, model_name: str, names) -> None:
+    unknown = [name for name in names if name not in ctx.env[model_name]._fields]
+    if unknown:
+        raise unknown_fields(ctx, model_name, unknown)
+
+
 def check_fields(ctx: McpContext, model_name: str, field_names) -> list[str]:
     if not isinstance(field_names, list) or not all(isinstance(f, str) for f in field_names):
         raise PolicyError(_lt("fields must be a list of field names."))
+    require_known_fields(ctx, model_name, field_names)
     hidden = [f for f in field_names if not field_readable(ctx, model_name, f)]
     if hidden:
         raise PolicyError(_lt(
-            "Fields %(fields)s on model %(model)s do not exist or are hidden via MCP. describe_model lists the "
-            "available fields.",
+            "Fields %(fields)s on model %(model)s exist but cannot be read via MCP (they are hidden or outside "
+            "this user's access).",
             fields=", ".join(hidden), model=model_name,
         ))
     return list(dict.fromkeys(field_names))
@@ -315,11 +365,25 @@ def check_path(ctx: McpContext, model_name: str, path: str, usage) -> tuple[str,
     """`usage` je jedna z konstant USAGE_… (do hlášky, kde pole nejde použít)."""
     if not isinstance(path, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*", path):
         raise PolicyError(_lt("%s is not a field name.", repr(path)))
-    target = related_target(ctx, model_name, path)
-    if target is None:
-        raise PolicyError(_lt("Field %(field)s on model %(model)s does not exist or cannot be used %(usage)s via MCP.",
-                              field=path, model=model_name, usage=usage))
-    return target
+    names = path.split(".")
+    current = model_name
+    for index, name in enumerate(names):
+        require_known_fields(ctx, current, [name])
+        if not field_readable(ctx, current, name):
+            raise PolicyError(_lt(
+                "Field %(field)s on model %(model)s exists but cannot be used %(usage)s via MCP (it is hidden or "
+                "outside this user's access).",
+                field=name, model=current, usage=usage,
+            ))
+        if index < len(names) - 1:
+            field = ctx.env[current]._fields[name]
+            if not field.relational:
+                raise PolicyError(_lt(
+                    "%(path)s is not a valid path: field %(field)s on model %(model)s is not a relation.",
+                    path=path, field=name, model=current,
+                ))
+            current = field.comodel_name
+    return current, names[-1]
 
 
 def check_domain(ctx: McpContext, model_name: str, domain, depth: int = 0) -> list:
@@ -458,6 +522,8 @@ def check_write(ctx: McpContext, model_name: str, operation: str, records=None, 
         try:
             _check_rule(ctx, rule, model_name, operation, records, values, depth)
             return rule
+        except UnknownFieldError:
+            raise  # neexistující pole nezávisí na pravidle
         except PolicyError as error:
             errors.extend(error.args)
     raise PolicyError(*errors)
@@ -486,7 +552,7 @@ def check_rule_domain(rule, records) -> None:
 def check_field_write(ctx, rule, model_name, name, value, allowed, depth):
     field = ctx.env[model_name]._fields.get(name)
     if field is None:
-        raise PolicyError(_lt("Field %(field)s does not exist on model %(model)s.", field=name, model=model_name))
+        raise unknown_fields(ctx, model_name, [name])
     if name in MAGIC_FIELDS:
         raise PolicyError(_lt("Field %s cannot be written.", name))
     if not field_readable(ctx, model_name, name):

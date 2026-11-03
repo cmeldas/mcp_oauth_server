@@ -29,11 +29,12 @@ from odoo.tools.translate import LazyTranslate
 from . import safe_fetch
 from .i18n import error_text, localize
 from .policy import (
-    FORBIDDEN_METHODS, OPERATION_FLAGS, OPERATION_LABELS, USAGE_ORDER, PolicyError, available_operations, cached,
-    can_write, tool_allowed, write_hint,
+    FORBIDDEN_METHODS, OPERATION_FLAGS, OPERATION_LABELS, USAGE_ORDER, PolicyError, UnknownFieldError,
+    available_operations, cached, can_write, tool_allowed, write_hint,
     check_action, check_aggregates, check_domain, check_fields, check_groupby, check_order, check_path,
     check_rule_domain, check_write, default_fields, effective_group_ids, field_readable, model_allowed,
-    readable_fields, readable_models, report_allowed, require_model, rule_models, user_rules,
+    readable_fields, readable_models, report_allowed, require_known_fields, require_model, rule_models,
+    unknown_fields, user_rules,
 )
 from .serialize import BINARY_TYPES, format_records, format_value, json_size, normalize_values, truncate
 
@@ -535,8 +536,10 @@ def tool_propose_rule(ctx, args):
         if not isinstance(names, list) or not names:
             raise PolicyError(_lt("fields[%s] must be a non-empty list of fields.", model_name))
         for fname in names:
+            require_known_fields(ctx, model_name, [fname])
             if not field_readable(ctx, model_name, fname):
-                raise PolicyError(_lt("Field %s does not exist or is hidden via MCP.", f"{model_name}.{fname}"))
+                raise PolicyError(_lt("Field %s exists but cannot be read via MCP (it is hidden or outside this "
+                                      "user's access).", f"{model_name}.{fname}"))
             field_ids.append(ctx.env["ir.model.fields"].sudo()._get(model_name, fname).id)
     if field_ids:
         values["field_ids"] = [Command.set(field_ids)]
@@ -702,11 +705,20 @@ def tool_get_report(ctx, args):
 
 # --- nástroje pro zápis ------------------------------------------------------------------------
 
-def tool_create_record(ctx, args):
-    model = require_model(ctx, args.get("model"))
-    values = normalize_values(model, args.get("values") or {})
+def write_values(ctx, model, args) -> dict:
+    """Hodnoty k zápisu. Neznámé pole nahlásí i s podobnými názvy dřív, než hodnoty převede serialize."""
+    values = args.get("values") or {}
+    if isinstance(values, dict):
+        require_known_fields(ctx, model._name, values)
+    values = normalize_values(model, values)
     if not values:
         raise PolicyError(_lt("values must not be empty."))
+    return values
+
+
+def tool_create_record(ctx, args):
+    model = require_model(ctx, args.get("model"))
+    values = write_values(ctx, model, args)
     rule = check_write(ctx, model._name, "create", values=values)
 
     def run():
@@ -723,9 +735,7 @@ def tool_create_record(ctx, args):
 def tool_update_record(ctx, args):
     model = require_model(ctx, args.get("model"))
     records = browse_existing(model, ids_argument(args))
-    values = normalize_values(model, args.get("values") or {})
-    if not values:
-        raise PolicyError(_lt("values must not be empty."))
+    values = write_values(ctx, model, args)
     rule = check_write(ctx, model._name, "write", records=records, values=values)
 
     def run():
@@ -815,7 +825,9 @@ def tool_set_image_from_url(ctx, args):
     record = browse_existing(model, ids_argument(args, "id", 1))
     fname = args.get("field") or "image_1920"
     field = model._fields.get(fname)
-    if field is None or field.type not in BINARY_TYPES:
+    if field is None:
+        raise unknown_fields(ctx, model._name, [fname])
+    if field.type not in BINARY_TYPES:
         raise PolicyError(_lt("Field %(field)s on model %(model)s is not an image.", field=fname, model=model._name))
     url = args.get("url")
     if not isinstance(url, str):
@@ -1129,6 +1141,9 @@ def call_tool(ctx, name: str, arguments) -> tuple[dict, str, str | None]:
         else:
             with cr.savepoint():
                 data = tool.handler(ctx, arguments)
+    except UnknownFieldError as error:
+        message = error_text(env, error)
+        return error_result(message), "error", message
     except PolicyError as error:
         message = error_text(env, error)
         return error_result(message), "denied", message

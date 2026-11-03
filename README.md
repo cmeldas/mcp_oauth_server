@@ -19,7 +19,9 @@ server, takže se přihlásíš běžným účtem Odoo a nic nekopíruješ. Pro 
 - **Zápis podle pravidel** po aplikacích (Produkty, Sklady, Prodej…), volitelně jen vyjmenovaná pole,
   jen záznamy podle domény a vybrané akce. Uživatel ho musí povolit i při připojení klienta.
 - **Reporty v PDF** (faktury a další): odkaz ke stažení platný 15 minut.
-- **Audit** všech volání a značka „přes MCP“ v chatteru u změn.
+- **Audit** všech volání a značka „přes MCP“ v chatteru u změn. Stav „odmítnuto“ znamená, že volání
+  zastavila pravidla MCP nebo práva Odoo. „Chyba“ znamená chybný dotaz, třeba pole, které na modelu
+  neexistuje: AI dostane podobné názvy (`product_uom_id` → `uom_id`) a dotaz opraví.
 - **Česky i anglicky** podle jazyka přihlášeného uživatele (Odoo i texty pro AI), viz [Jazyky](#jazyky).
 
 ## Adresy
@@ -222,7 +224,8 @@ class McpTool(models.Model):
   - `check_write(ctx, model, operation, records, values)`, nebo jen `require_write_scope(ctx)`: zápis podle
     pravidel a rozsahu spojení;
   - `PolicyError(_lt("…"))`: srozumitelná chyba pro AI v jazyce uživatele, do auditu jako „odmítnuto“.
-    Texty ve výsledku nástroje přes `ctx.env._("…")`.
+    `require_known_fields(ctx, model, names)` nahlásí neexistující pole s podobnými názvy, do auditu jako
+    „chyba“. Texty ve výsledku nástroje přes `ctx.env._("…")`.
 - **Pomocné funkce** v `lib/tools.py`: `browse_existing`, `ids_argument`, `clamp`, `run_write` (náhled
   s návratem zpět), `schema`, `READ_ANNOTATIONS`.
 - **`Tool`:**
@@ -371,10 +374,10 @@ odoo -d mcp_test --db-filter='^mcp_test$' -i mcp_oauth_server --test-enable --te
      --stop-after-init --http-port=8070 --gevent-port=8073
 ```
 
-47 testů:
+48 testů:
 
 - pomocné funkce OAuth a ochrana proti SSRF;
-- pravidla přístupu;
+- pravidla přístupu, neexistující pole s nabídkou podobných;
 - návrhy pravidel od AI a jejich schválení jen člověkem;
 - pokyny pro AI a vypnuté nebo omezené nástroje;
 - návrhy odpovědí: neodešle je cron, odeslání a zrušení uzavře aktivitu, čištění HTML;

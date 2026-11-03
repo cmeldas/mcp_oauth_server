@@ -43,6 +43,12 @@ class TestTranslations(TransactionCase):
         self.assertEqual(message, "Záznamy 999999999 modelu res.partner neexistují.")
         _result, _status, message = tools.call_tool(self.ctx("en_US"), "read_records", arguments)
         self.assertEqual(message, "Records 999999999 of model res.partner do not exist.")
+        arguments = {"model": "res.partner", "fields": ["e_mail"]}
+        _result, status, message = tools.call_tool(self.ctx("cs_CZ"), "search_read", arguments)
+        self.assertEqual(status, "error")
+        self.assertTrue(message.startswith("Pole e_mail na modelu res.partner neexistuje. Podobná pole: email ("),
+                        message)
+        self.assertTrue(message.endswith(" Všechna dostupná pole vypíše describe_model."), message)
 
     def test_nested_texts(self):
         """Hláška složená z víc textů a s přeloženým parametrem (druh operace)."""

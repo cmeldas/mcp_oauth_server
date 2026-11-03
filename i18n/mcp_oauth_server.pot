@@ -61,6 +61,12 @@ msgstr ""
 
 #. module: mcp_oauth_server
 #. odoo-python
+#: code:addons/mcp_oauth_server/lib/policy.py:0
+msgid "%(path)s is not a valid path: field %(field)s on model %(model)s is not a relation."
+msgstr ""
+
+#. module: mcp_oauth_server
+#. odoo-python
 #: code:addons/mcp_oauth_server/lib/tools.py:0
 msgid "%s drafted a reply. You will find it in the chatter: Edit, Send Now or Cancel."
 msgstr ""
@@ -919,7 +925,13 @@ msgstr ""
 #. module: mcp_oauth_server
 #. odoo-python
 #: code:addons/mcp_oauth_server/lib/policy.py:0
-msgid "Field %(field)s on model %(model)s does not exist or cannot be used %(usage)s via MCP."
+msgid "Field %(field)s does not exist on model %(model)s. Similar fields: %(similar)s."
+msgstr ""
+
+#. module: mcp_oauth_server
+#. odoo-python
+#: code:addons/mcp_oauth_server/lib/policy.py:0
+msgid "Field %(field)s on model %(model)s exists but cannot be used %(usage)s via MCP (it is hidden or outside this user's access)."
 msgstr ""
 
 #. module: mcp_oauth_server
@@ -949,7 +961,7 @@ msgstr ""
 #. module: mcp_oauth_server
 #. odoo-python
 #: code:addons/mcp_oauth_server/lib/tools.py:0
-msgid "Field %s does not exist or is hidden via MCP."
+msgid "Field %s exists but cannot be read via MCP (it is hidden or outside this user's access)."
 msgstr ""
 
 #. module: mcp_oauth_server
@@ -991,7 +1003,7 @@ msgstr ""
 #. module: mcp_oauth_server
 #. odoo-python
 #: code:addons/mcp_oauth_server/lib/policy.py:0
-msgid "Fields %(fields)s on model %(model)s do not exist or are hidden via MCP. describe_model lists the available fields."
+msgid "Fields %(fields)s on model %(model)s exist but cannot be read via MCP (they are hidden or outside this user's access)."
 msgstr ""
 
 #. module: mcp_oauth_server
@@ -2777,6 +2789,12 @@ msgstr ""
 #. odoo-python
 #: code:addons/mcp_oauth_server/lib/policy.py:0
 msgid "deleting"
+msgstr ""
+
+#. module: mcp_oauth_server
+#. odoo-python
+#: code:addons/mcp_oauth_server/lib/policy.py:0
+msgid "describe_model lists all available fields."
 msgstr ""
 
 #. module: mcp_oauth_server

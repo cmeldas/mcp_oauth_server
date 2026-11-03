@@ -86,6 +86,12 @@ msgstr "Adresa %(host)s vede do neveřejné sítě (%(address)s)."
 
 #. module: mcp_oauth_server
 #. odoo-python
+#: code:addons/mcp_oauth_server/lib/policy.py:0
+msgid "%(path)s is not a valid path: field %(field)s on model %(model)s is not a relation."
+msgstr "%(path)s není platná cesta: pole %(field)s na modelu %(model)s není vazba."
+
+#. module: mcp_oauth_server
+#. odoo-python
 #: code:addons/mcp_oauth_server/lib/tools.py:0
 msgid "%s drafted a reply. You will find it in the chatter: Edit, Send Now or Cancel."
 msgstr "%s připravil odpověď. Najdeš ji v chatteru: Upravit, Odeslat hned nebo Zrušit."
@@ -961,8 +967,14 @@ msgstr "Pole %(field)s na modelu %(model)s neexistuje."
 #. module: mcp_oauth_server
 #. odoo-python
 #: code:addons/mcp_oauth_server/lib/policy.py:0
-msgid "Field %(field)s on model %(model)s does not exist or cannot be used %(usage)s via MCP."
-msgstr "Pole %(field)s na modelu %(model)s neexistuje nebo ho přes MCP nejde použít %(usage)s."
+msgid "Field %(field)s does not exist on model %(model)s. Similar fields: %(similar)s."
+msgstr "Pole %(field)s na modelu %(model)s neexistuje. Podobná pole: %(similar)s."
+
+#. module: mcp_oauth_server
+#. odoo-python
+#: code:addons/mcp_oauth_server/lib/policy.py:0
+msgid "Field %(field)s on model %(model)s exists but cannot be used %(usage)s via MCP (it is hidden or outside this user's access)."
+msgstr "Pole %(field)s na modelu %(model)s existuje, ale přes MCP ho nejde použít %(usage)s (je skryté nebo mimo práva uživatele)."
 
 #. module: mcp_oauth_server
 #. odoo-python
@@ -991,8 +1003,8 @@ msgstr "Pole %s se nezapisuje."
 #. module: mcp_oauth_server
 #. odoo-python
 #: code:addons/mcp_oauth_server/lib/tools.py:0
-msgid "Field %s does not exist or is hidden via MCP."
-msgstr "Pole %s neexistuje nebo je přes MCP skryté."
+msgid "Field %s exists but cannot be read via MCP (it is hidden or outside this user's access)."
+msgstr "Pole %s existuje, ale přes MCP ho nejde číst (je skryté nebo mimo práva uživatele)."
 
 #. module: mcp_oauth_server
 #. odoo-python
@@ -1033,8 +1045,8 @@ msgstr "Hodnoty polí. many2one = ID, many2many = seznam ID, řádky one2many = 
 #. module: mcp_oauth_server
 #. odoo-python
 #: code:addons/mcp_oauth_server/lib/policy.py:0
-msgid "Fields %(fields)s on model %(model)s do not exist or are hidden via MCP. describe_model lists the available fields."
-msgstr "Pole %(fields)s na modelu %(model)s neexistují nebo jsou přes MCP skrytá. Dostupná pole vypíše describe_model."
+msgid "Fields %(fields)s on model %(model)s exist but cannot be read via MCP (they are hidden or outside this user's access)."
+msgstr "Pole %(fields)s na modelu %(model)s existují, ale přes MCP je číst nejde (jsou skrytá nebo mimo práva uživatele)."
 
 #. module: mcp_oauth_server
 #: model:ir.actions.act_window,name:mcp_oauth_server.action_mcp_hidden_fields
@@ -2829,6 +2841,12 @@ msgstr "mazat"
 #: code:addons/mcp_oauth_server/lib/policy.py:0
 msgid "deleting"
 msgstr "mazání"
+
+#. module: mcp_oauth_server
+#. odoo-python
+#: code:addons/mcp_oauth_server/lib/policy.py:0
+msgid "describe_model lists all available fields."
+msgstr "Všechna dostupná pole vypíše describe_model."
 
 #. module: mcp_oauth_server
 #. odoo-python
