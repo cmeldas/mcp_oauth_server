@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="mcp_tool_view_list" model="ir.ui.view">
+        <field name="name">mcp.tool.list</field>
+        <field name="model">mcp.tool</field>
+        <field name="arch" type="xml">
+            <list create="0" editable="bottom" decoration-muted="not enabled or not available">
+                <field name="sequence" column_invisible="True"/>
+                <field name="name" readonly="1"/>
+                <field name="title" readonly="1"/>
+                <field name="kind" readonly="1" widget="badge" decoration-info="kind == 'read'"
+                       decoration-warning="kind == 'write'" decoration-danger="kind == 'admin'"/>
+                <field name="module" readonly="1" optional="show"/>
+                <field name="available" optional="hide"/>
+                <field name="enabled" widget="boolean_toggle"/>
+                <field name="group_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                <field name="user_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                <field name="note" optional="show"/>
+                <field name="description" optional="hide" readonly="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="mcp_tool_view_search" model="ir.ui.view">
+        <field name="name">mcp.tool.search</field>
+        <field name="model">mcp.tool</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <filter name="disabled" string="Disabled" domain="[('enabled', '=', False)]"/>
+                <filter name="restricted" string="Restricted" domain="['|', ('group_ids', '!=', False), ('user_ids', '!=', False)]"/>
+                <group>
+                    <filter name="group_kind" string="Kind" context="{'group_by': 'kind'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_mcp_tool" model="ir.actions.act_window">
+        <field name="name">MCP Tools</field>
+        <field name="res_model">mcp.tool</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p>Tools the AI client sees via MCP. Nobody sees a disabled tool; with groups or users filled in, only they
+               do. Writing is also governed by the write rules.</p>
+        </field>
+    </record>
+
+    <!-- Pokyny pro AI: formulář jen s poli MCP na firmě uživatele -->
+    <record id="res_company_view_form_mcp" model="ir.ui.view">
+        <field name="name">res.company.form.mcp</field>
+        <field name="model">res.company</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <form string="AI Instructions" create="0" delete="0">
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Every AI client connected via MCP gets this right at the start (server instructions) and again
+                        in the whoami tool, before it starts working. Write briefly and specifically, in Markdown.
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <field name="mcp_system_name" placeholder="Odoo Company Name"/>
+                    </group>
+                    <group string="What Is This Odoo">
+                        <field name="mcp_about" nolabel="1" colspan="2"
+                               placeholder="Whose system it is and what it is used for: lines of business, what is recorded here (inventory, manufacturing, sales, accounting…) and what is not."/>
+                    </group>
+                    <group string="Rules for AI">
+                        <field name="mcp_instructions" nolabel="1" colspan="2"
+                               placeholder="- Show a preview before every write and wait for approval.&#10;- Do not make up prices and numbers, take them from Odoo.&#10;- Do not list personal data of employees.&#10;- Write texts for customers in a friendly, informal tone."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_mcp_company_instructions" model="ir.actions.server">
+        <field name="name">AI Instructions</field>
+        <field name="path">mcp-ai-instructions</field>
+        <field name="model_id" ref="base.model_res_company"/>
+        <field name="state">code</field>
+        <field name="code">action = env["res.company"]._mcp_instructions_action()</field>
+    </record>
+</odoo>

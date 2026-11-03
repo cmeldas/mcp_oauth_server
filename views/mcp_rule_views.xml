@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="mcp_rule_view_list" model="ir.ui.view">
+        <field name="name">mcp.rule.list</field>
+        <field name="model">mcp.rule</field>
+        <field name="arch" type="xml">
+            <list decoration-warning="state == 'proposed'" decoration-muted="state == 'rejected'">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="state" widget="badge" decoration-warning="state == 'proposed'"
+                       decoration-success="state == 'approved'" decoration-muted="state == 'rejected'"/>
+                <field name="privilege_id"/>
+                <field name="summary"/>
+                <field name="proposed_by_id" optional="hide"/>
+                <field name="approved_by_id" optional="hide"/>
+                <field name="user_ids" widget="many2many_tags" optional="show"/>
+                <field name="active" column_invisible="True"/>
+                <field name="activity_ids" widget="list_activity" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="mcp_rule_view_form" model="ir.ui.view">
+        <field name="name">mcp.rule.form</field>
+        <field name="model">mcp.rule</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                            invisible="state == 'approved'"
+                            confirm="The rule will apply to connected AI clients with writing allowed. Approve?"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state != 'proposed'"/>
+                    <button name="action_reset_to_proposed" type="object" string="Suspend"
+                            invisible="state != 'approved'"
+                            help="The rule stops applying and goes back to the proposals."/>
+                    <field name="state" widget="statusbar" statusbar_visible="proposed,approved"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="alert alert-warning" role="alert" invisible="state != 'proposed'">
+                        <p class="mb-1">
+                            <strong>AI proposal, not in effect yet.</strong> Proposed by <field name="proposal_client" class="d-inline"/>
+                            for user <field name="proposed_by_id" class="d-inline" readonly="1"/>.
+                            Before approving, check the app, models, operations and fields, and narrow them down if needed.
+                        </p>
+                        <p class="mb-0" invisible="not proposal_reason">
+                            Reasoning (written by the AI client, not verified): <field name="proposal_reason" class="d-inline"/>
+                        </p>
+                    </div>
+                    <div class="alert alert-info" role="alert" invisible="state == 'proposed'">
+                        Without a rule, the AI client only reads via MCP. A rule allows writing to the models of one app,
+                        but never more than the user has in Odoo without administrator rights. The user also has to allow
+                        writing when connecting the client (by ticking “Also allow writing”).
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="e.g. Products: creating and editing"/></h1>
+                    </div>
+                    <p class="text-muted"><field name="summary"/></p>
+                    <group>
+                        <group string="Applies To">
+                            <field name="privilege_id" options="{'no_create': True}"/>
+                            <field name="extra_model_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                            <field name="excluded_model_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                            <field name="user_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        </group>
+                        <group string="Permissions">
+                            <field name="perm_create"/>
+                            <field name="perm_write"/>
+                            <field name="perm_archive"/>
+                            <field name="perm_unlink"/>
+                            <field name="perm_note"/>
+                            <field name="action_names" placeholder="action_confirm, button_validate"/>
+                            <field name="max_records"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Models" name="models">
+                            <field name="model_ids" readonly="1">
+                                <list>
+                                    <field name="model"/>
+                                    <field name="name"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Only These Fields" name="fields">
+                            <field name="field_ids" domain="[('model_id', 'in', model_ids)]"
+                                   options="{'no_create': True}">
+                                <list>
+                                    <field name="model"/>
+                                    <field name="name"/>
+                                    <field name="field_description"/>
+                                    <field name="ttype"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Only Records" name="domain">
+                            <field name="domain" placeholder="[(&quot;categ_id.name&quot;, &quot;=&quot;, &quot;Beer&quot;)]"/>
+                        </page>
+                        <page string="Approval" name="approval">
+                            <group>
+                                <field name="proposed_by_id"/>
+                                <field name="proposal_client"/>
+                                <field name="proposal_reason"/>
+                                <field name="approved_by_id"/>
+                                <field name="approved_date"/>
+                            </group>
+                        </page>
+                        <page string="Note" name="note">
+                            <field name="note"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="mcp_rule_view_search" model="ir.ui.view">
+        <field name="name">mcp.rule.search</field>
+        <field name="model">mcp.rule</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="privilege_id"/>
+                <filter name="proposed" string="Proposals to Approve" domain="[('state', '=', 'proposed')]"/>
+                <filter name="approved" string="Approved" domain="[('state', '=', 'approved')]"/>
+                <filter name="rejected" string="Rejected" domain="[('state', '=', 'rejected')]"/>
+                <separator/>
+                <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
+                <group>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_mcp_rule" model="ir.actions.act_window">
+        <field name="name">MCP Write Rules</field>
+        <field name="res_model">mcp.rule</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No rule yet: AI clients only read via MCP.</p>
+            <p>A rule allows writing to one app, e.g. creating and editing products. The AI client can propose a rule
+               itself (propose_rule tool), but it takes effect only after you approve it.</p>
+        </field>
+    </record>
+
+    <record id="action_mcp_rule_proposed" model="ir.actions.act_window">
+        <field name="name">AI Rule Proposals</field>
+        <field name="res_model">mcp.rule</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_proposed': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No proposal is waiting for approval.</p>
+        </field>
+    </record>
+</odoo>

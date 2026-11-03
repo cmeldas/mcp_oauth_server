@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Návrh odpovědi od AI: místo času odeslání štítek, že se neodešle sám. -->
+    <t t-name="mcp_oauth_server.ScheduledMessage" t-inherit="mail.ScheduledMessage" t-inherit-mode="extension">
+        <xpath expr="//small[hasclass('o-mail-Message-date')]" position="attributes">
+            <attribute name="t-if">!this.props.scheduledMessage.mcp_draft</attribute>
+        </xpath>
+        <xpath expr="//small[hasclass('o-mail-Message-date')]" position="after">
+            <small t-if="this.props.scheduledMessage.mcp_draft" class="o_mcp_draft_badge badge text-bg-warning ms-1">
+                AI draft · not sent automatically
+            </small>
+        </xpath>
+    </t>
+</templates>

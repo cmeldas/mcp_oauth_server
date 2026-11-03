@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- spojení -->
+    <record id="mcp_oauth_grant_view_list" model="ir.ui.view">
+        <field name="name">mcp.oauth.grant.list</field>
+        <field name="model">mcp.oauth.grant</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0" decoration-muted="not active">
+                <field name="user_id"/>
+                <field name="client_name"/>
+                <field name="scope"/>
+                <field name="redirect_host" optional="show"/>
+                <field name="create_date" string="Connected"/>
+                <field name="last_used"/>
+                <field name="last_ip" optional="hide"/>
+                <field name="revoked_date" optional="hide"/>
+                <field name="active" column_invisible="True"/>
+                <button name="action_revoke" type="object" string="Revoke" icon="fa-ban" class="text-danger" invisible="not active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="mcp_oauth_grant_view_search" model="ir.ui.view">
+        <field name="name">mcp.oauth.grant.search</field>
+        <field name="model">mcp.oauth.grant</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="user_id"/>
+                <field name="client_id"/>
+                <filter name="revoked" string="Revoked" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_mcp_oauth_grant" model="ir.actions.act_window">
+        <field name="name">MCP Connections</field>
+        <field name="res_model">mcp.oauth.grant</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No AI client has connected yet.</p>
+            <p>In claude.ai, add a custom connector with the <code>…/api/mcp</code> URL of this Odoo.</p>
+        </field>
+    </record>
+
+    <!-- klienti -->
+    <record id="mcp_oauth_client_view_list" model="ir.ui.view">
+        <field name="name">mcp.oauth.client.list</field>
+        <field name="model">mcp.oauth.client</field>
+        <field name="arch" type="xml">
+            <list create="0">
+                <field name="name"/>
+                <field name="kind"/>
+                <field name="client_id"/>
+                <field name="grant_count"/>
+                <field name="create_date" string="Registered"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="mcp_oauth_client_view_form" model="ir.ui.view">
+        <field name="name">mcp.oauth.client.form</field>
+        <field name="model">mcp.oauth.client</field>
+        <field name="arch" type="xml">
+            <form create="0">
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <field name="kind"/>
+                        <field name="client_id"/>
+                        <field name="auth_method"/>
+                        <field name="fetched_date" invisible="kind != 'cimd'"/>
+                        <field name="active" widget="boolean_toggle"/>
+                    </group>
+                    <notebook>
+                        <page string="Connections" name="grants">
+                            <field name="grant_ids" readonly="1" context="{'active_test': False}">
+                                <list decoration-muted="not active">
+                                    <field name="user_id"/>
+                                    <field name="scope"/>
+                                    <field name="last_used"/>
+                                    <field name="active" column_invisible="True"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Redirect URIs" name="redirects">
+                            <field name="redirect_uris"/>
+                        </page>
+                        <page string="Client Metadata" name="metadata">
+                            <field name="metadata"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_mcp_oauth_client" model="ir.actions.act_window">
+        <field name="name">MCP OAuth Clients</field>
+        <field name="res_model">mcp.oauth.client</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'active_test': False}</field>
+    </record>
+</odoo>

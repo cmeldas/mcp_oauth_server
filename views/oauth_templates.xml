@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="oauth_consent" name="MCP: connection consent">
+        <t t-call="web.login_layout">
+            <t t-set="disable_database_manager" t-value="True"/>
+            <form role="form" method="post" action="/api/mcp/oauth/authorize/decision" class="o_mcp_consent">
+                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                <t t-foreach="params.items()" t-as="item">
+                    <input type="hidden" t-att-name="item[0]" t-att-value="item[1]"/>
+                </t>
+                <h4 class="text-center mb-3">
+                    <strong t-out="client.name"/> wants to connect to Odoo
+                </h4>
+                <ul class="list-unstyled small mb-3">
+                    <li>As user <strong t-out="user.name"/> (<t t-out="user.login"/>), company <t t-out="company"/>.</li>
+                    <li t-if="client_host">Client: <strong t-out="client_host"/></li>
+                    <li>After allowing, you will return to: <strong t-out="redirect_host"/></li>
+                </ul>
+                <div t-if="loopback" class="alert alert-warning small" role="alert">
+                    The client returns to an address on this computer (<t t-out="redirect_host"/>). Only allow it if you
+                    have just started the connection yourself, e.g. in Claude Code.
+                </div>
+                <div class="alert alert-light border small" role="status">
+                    <p class="mb-1"><strong>Reading:</strong> everything you can access in Odoo, without administrator
+                    rights. The client will not see passwords, tokens, keys and certificates.</p>
+                    <p class="mb-0">Every call is recorded in the audit log (Settings → MCP → Audit).</p>
+                </div>
+                <t t-if="write_requested">
+                    <div class="form-check mb-2" t-if="rules">
+                        <input class="form-check-input" type="checkbox" name="allow_write" value="1" id="mcp_allow_write"/>
+                        <label class="form-check-label" for="mcp_allow_write"><strong>Also allow writing</strong> according to the rules:</label>
+                        <ul class="small mt-1 mb-0">
+                            <li t-foreach="rules" t-as="rule">
+                                <t t-out="rule['name']"/>
+                                <span class="text-muted" t-if="rule['app']">(<t t-out="rule['app']"/>, models: <t t-out="rule['models']"/>)</span>:
+                                <t t-out="rule['operations']"/>
+                            </li>
+                        </ul>
+                    </div>
+                    <p class="small text-muted" t-else="">
+                        No rule allows writing yet (Settings → MCP → Write Rules), the client will only read.
+                    </p>
+                </t>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" name="decision" value="allow" class="btn btn-primary flex-grow-1">Allow</button>
+                    <button type="submit" name="decision" value="deny" class="btn btn-outline-secondary flex-grow-1">Deny</button>
+                </div>
+                <p class="small text-muted mt-3 mb-0">
+                    You can revoke the connection at any time in Preferences, Account Security tab.
+                </p>
+            </form>
+        </t>
+    </template>
+
+    <template id="oauth_error" name="MCP: connection error">
+        <t t-call="web.login_layout">
+            <t t-set="disable_database_manager" t-value="True"/>
+            <div class="alert alert-danger" role="alert">
+                <p class="mb-1"><strong>Connecting the AI client failed.</strong></p>
+                <p class="mb-0" t-out="error"/>
+            </div>
+        </t>
+    </template>
+</odoo>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_users_form_simple_modif_mcp" model="ir.ui.view">
+        <field name="name">res.users.preferences.form.mcp</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form_simple_modif"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='api_keys']" position="after">
+                <div name="mcp_grants" class="d-lg-flex mt-3">
+                    <div class="col-lg-3 d-flex flex-column">
+                        <label for="mcp_grant_ids" string="AI Clients (MCP)" class="o_form_label"/>
+                        <span class="text-muted">
+                            Claude and other connections via MCP. For Claude Code without OAuth, create an API key with an MCP scope above.
+                        </span>
+                    </div>
+                    <div class="w-lg-75 d-flex flex-column my-auto">
+                        <field name="mcp_grant_ids" readonly="1" invisible="not mcp_grant_ids">
+                            <list create="0" delete="0">
+                                <field name="client_name"/>
+                                <field name="write_allowed" string="Write"/>
+                                <field name="create_date" string="Connected"/>
+                                <field name="last_used"/>
+                                <button name="action_revoke" type="object" string="Revoke" icon="fa-ban" class="text-danger"/>
+                            </list>
+                        </field>
+                        <span class="text-muted" invisible="mcp_grant_ids">No AI client is connected.</span>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

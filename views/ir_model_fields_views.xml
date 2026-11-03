@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="ir_model_fields_view_list_mcp" model="ir.ui.view">
+        <field name="name">ir.model.fields.list.mcp</field>
+        <field name="model">ir.model.fields</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list create="0" delete="0" editable="bottom">
+                <field name="model" readonly="1"/>
+                <field name="name" readonly="1"/>
+                <field name="field_description" readonly="1"/>
+                <field name="ttype" readonly="1"/>
+                <field name="mcp_hidden" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="ir_model_fields_view_search_mcp" model="ir.ui.view">
+        <field name="name">ir.model.fields.search.mcp</field>
+        <field name="model">ir.model.fields</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="model"/>
+                <field name="name"/>
+                <field name="field_description"/>
+                <filter name="mcp_hidden" string="Hidden from MCP" domain="[('mcp_hidden', '=', True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_mcp_hidden_fields" model="ir.actions.act_window">
+        <field name="name">Fields Hidden from MCP</field>
+        <field name="res_model">ir.model.fields</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="ir_model_fields_view_list_mcp"/>
+        <field name="search_view_id" ref="ir_model_fields_view_search_mcp"/>
+        <field name="context">{'search_default_mcp_hidden': 1}</field>
+        <field name="help" type="html">
+            <p>Fields the AI client does not see via MCP. Remove the filter, find the field by its model and turn on “Hidden from MCP”.</p>
+            <p>Passwords, tokens, keys, certificates and administrator-only fields are always hidden.</p>
+        </field>
+    </record>
+</odoo>
