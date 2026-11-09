@@ -101,7 +101,8 @@ class McpController(http.Controller):
         # jazyk uživatele z context_get(): podle něj se překládají popisy nástrojů i hlášky
         client_name = client_name or request.env._("API key")
         return McpContext(env=request.env, base_url=base_url(), scopes=frozenset(scopes), auth=auth,
-                          client_name=client_name, grant_id=grant.id if grant else None)
+                          client_name=client_name, grant_id=grant.id if grant else None,
+                          yolo=bool(user.sudo().mcp_yolo))
 
     def _auditor(self, ctx: McpContext):
         log_reads = config_flag("log_reads")

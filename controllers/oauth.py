@@ -127,6 +127,7 @@ class McpOAuthController(http.Controller):
             "company": company_name(),
             "database": request.env.cr.dbname,
             "write_requested": oauth.SCOPE_WRITE in values["scopes"],
+            "yolo": user.sudo().mcp_yolo,
             "rules": [{"name": r.name, "app": r.privilege_id.name, "models": r.model_count,
                        "operations": ", ".join(request.env._(OPERATION_LABELS[op])
                                                for op in ("create", "write", "archive", "unlink", "note")

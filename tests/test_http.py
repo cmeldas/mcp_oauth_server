@@ -61,7 +61,7 @@ class TestMcpHttp(HttpCase):
         page = self.url_open("/api/mcp/oauth/authorize?" + urlencode(query))
         self.assertEqual(page.status_code, 200, page.text)
         self.assertIn("Allow", page.text)
-        csrf = re.search(r'name="csrf_token" value="([^"]+)"', page.text).group(1)
+        csrf = re.search(r'name="csrf_token"[^>]*?value="([^"]+)"', page.text).group(1)
         data = {**query, "csrf_token": csrf, "decision": "allow"}
         if allow_write:
             data["allow_write"] = "1"

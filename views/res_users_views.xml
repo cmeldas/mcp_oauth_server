@@ -29,4 +29,21 @@
             </xpath>
         </field>
     </record>
+
+    <record id="view_users_form_mcp_yolo" model="ir.ui.view">
+        <field name="name">res.users.form.mcp.yolo</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='access_rights']" position="inside">
+                <group string="MCP" name="mcp" invisible="share" groups="base.group_system">
+                    <field name="mcp_yolo" widget="boolean_toggle"/>
+                </group>
+                <div class="alert alert-danger" role="alert" invisible="not mcp_yolo" groups="base.group_system">
+                    <strong>YOLO:</strong> AI clients of this user can do everything the user can do in Odoo,
+                    administration included, without write rules. Use it only on a test database.
+                </div>
+            </xpath>
+        </field>
+    </record>
 </odoo>

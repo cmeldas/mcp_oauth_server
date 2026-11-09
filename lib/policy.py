@@ -7,6 +7,11 @@
    uživatel neměl skupiny Nastavení, Přístupová práva a Technické funkce. Technické modely
    a citlivá pole (hesla, tokeny, klíče) nejsou dostupné nikdy, ani pro čtení.
 3. **Pravidla zápisu `mcp.rule`:** bez pravidla se nezapisuje nikam.
+
+**YOLO** (uživatel s `res.users.mcp_yolo`, zapíná ho jen správce): vrstvy 2 a 3 odpadají, platí jen
+práva Odoo uživatele, i administrátorská, a technické modely. Zůstává: rozsah tokenu (spojení jen pro
+čtení nezapisuje), skrytí hesel, tokenů a klíčů, nedostupné modely MCP, API klíčů a dvoufázového ověření
+(`YOLO_DENIED_MODEL_PREFIXES`) a pole `mcp_*`, která jdou měnit jen v Odoo.
 """
 import re
 from dataclasses import dataclass, field as dc_field
@@ -36,10 +41,19 @@ DENIED_MODELS = frozenset({
 DENIED_WRITE_MODELS = frozenset({"res.users", "res.company"})
 # Výjimky z prefixů: metadata příloh (obsah se nevrací) a aktivity.
 ALLOWED_MODELS = frozenset({"ir.attachment", "mail.activity", "mail.activity.type", "mail.message.subtype"})
+# Ani v YOLO: nastavení a audit MCP, API klíče, dvoufázové ověření, uložené platební údaje, certifikáty
+# (privátní klíče) a systémové parametry (klíče služeb, tajemství databáze; nastavení jde přes
+# res.config.settings).
+YOLO_DENIED_MODEL_PREFIXES = (
+    "mcp.", "res.users.apikeys", "auth_totp", "auth_passkey", "payment.token", "certificate.",
+    "ir.config_parameter",
+)
+# Pole nastavení MCP (`mcp_yolo`, `mcp_hidden`, pokyny pro AI…) jdou měnit jen v Odoo, ne přes MCP.
+MCP_SETTING_FIELD_PREFIX = "mcp_"
 
 SENSITIVE_FIELD = re.compile(
-    r"(^|_)(password|passwd|pwd|secret|token|tokens|api_?key|apikey|private_key|totp|otp_secret|signup|pin|"
-    r"pkcs12|p12|pfx|credential|credentials)($|_)"
+    r"(^|_)(password|passwd|pwd|pass|secret|token|tokens|api_?key|apikey|private_key|access_key|totp|otp_secret|"
+    r"signup|pin|pkcs12|p12|pfx|credential|credentials)($|_)"
 )
 MAGIC_FIELDS = frozenset({"id", "display_name", "create_uid", "create_date", "write_uid", "write_date", "__last_update"})
 SKIPPED_TYPES = frozenset({"properties", "properties_definition"})
@@ -111,6 +125,7 @@ class McpContext:
     client_name: str = ""
     grant_id: int | None = None
     apikey_name: str | None = None
+    yolo: bool = False
     cache: dict = dc_field(default_factory=dict)
 
 
@@ -142,8 +157,11 @@ def admin_group_ids(env) -> frozenset[int]:
 
 
 def effective_group_ids(ctx: McpContext) -> frozenset[int]:
-    """Skupiny uživatele bez administrátorských (a bez skupin, které jen z nich plynou)."""
+    """Skupiny uživatele bez administrátorských (a bez skupin, které jen z nich plynou); v YOLO všechny."""
     def compute():
+        if ctx.yolo:
+            explicit = ctx.env.user.sudo().group_ids
+            return frozenset((explicit | explicit.all_implied_ids).ids)
         admin = admin_group_ids(ctx.env)
         explicit = ctx.env.user.sudo().group_ids.filtered(lambda g: g.id not in admin)
         return frozenset((explicit | explicit.all_implied_ids).ids) - admin
@@ -154,6 +172,10 @@ def model_denied(model_name: str) -> bool:
     if model_name in ALLOWED_MODELS:
         return False
     return model_name in DENIED_MODELS or model_name.startswith(DENIED_MODEL_PREFIXES)
+
+
+def yolo_model_denied(model_name: str) -> bool:
+    return model_name.startswith(YOLO_DENIED_MODEL_PREFIXES)
 
 
 def acl_models(ctx: McpContext, operation: str) -> frozenset[str]:
@@ -176,6 +198,11 @@ def model_allowed(ctx: McpContext, model_name: str, operation: str = "read") -> 
     """
     def compute():
         env = ctx.env
+        if ctx.yolo:
+            # jen práva Odoo uživatele (i globální a administrátorská), i průvodci (transient)
+            if model_name not in env.registry or yolo_model_denied(model_name) or env[model_name]._abstract:
+                return False
+            return env[model_name].has_access(operation)
         if model_name not in env.registry or model_denied(model_name):
             return False
         if operation != "read" and model_name in DENIED_WRITE_MODELS:
@@ -262,7 +289,7 @@ def _field_readable(ctx: McpContext, model_name: str, fname: str) -> bool:
         return True
     if field.type in SKIPPED_TYPES or SENSITIVE_FIELD.search(fname):
         return False
-    if (model_name, fname) in hidden_fields(ctx):
+    if not ctx.yolo and (model_name, fname) in hidden_fields(ctx):
         return False
     if field.groups and not groups_allowed(ctx, field.groups):
         return False
@@ -474,9 +501,11 @@ def rule_models(ctx: McpContext, rule) -> frozenset[str]:
 
 
 def available_operations(ctx: McpContext) -> set[str]:
-    """Které druhy zápisu má uživatel v pravidlech (podle toho se nabízejí nástroje)."""
+    """Které druhy zápisu má uživatel v pravidlech (podle toho se nabízejí nástroje); v YOLO všechny."""
     if not can_write(ctx):
         return set()
+    if ctx.yolo:
+        return {*OPERATION_FLAGS, "action"}
     operations = {op for rule in user_rules(ctx) for op, flag in OPERATION_FLAGS.items() if rule[flag]}
     if any(rule._get_action_names() for rule in user_rules(ctx)):
         operations.add("action")
@@ -506,13 +535,18 @@ def too_many_records(rule) -> PolicyError:
 
 
 def check_write(ctx: McpContext, model_name: str, operation: str, records=None, values=None, depth: int = 0):
-    """Ověří zápis podle pravidel; vrátí pravidlo, které ho povolilo. Jinak PolicyError."""
+    """Ověří zápis podle pravidel; vrátí pravidlo, které ho povolilo (v YOLO None). Jinak PolicyError."""
     require_write_scope(ctx)
     if depth > 3:
         raise PolicyError(_lt("Relation commands are nested too deeply."))
     require_model(ctx, model_name, "read")
     if not model_allowed(ctx, model_name, OPERATION_ACCESS[operation]):
         raise access_denied(model_name, operation)
+    if ctx.yolo:
+        # bez pravidel: jen práva Odoo, kontrola polí (skrytá, nastavení MCP) a příkazů x2many
+        for name, value in (values or {}).items():
+            check_field_write(ctx, None, model_name, name, value, None, depth)
+        return None
     rules = [r for r in user_rules(ctx) if r[OPERATION_FLAGS[operation]] and model_name in rule_models(ctx, r)]
     if not rules:
         raise PolicyError(_lt("MCP rules do not allow %(operation)s on model %(model)s.",
@@ -540,6 +574,8 @@ def _check_rule(ctx, rule, model_name, operation, records, values, depth):
 
 
 def check_rule_domain(rule, records) -> None:
+    if rule is None:  # YOLO: zápis nepovolilo pravidlo
+        return
     domain = rule._get_domain()
     if not domain or not records:
         return
@@ -555,6 +591,8 @@ def check_field_write(ctx, rule, model_name, name, value, allowed, depth):
         raise unknown_fields(ctx, model_name, [name])
     if name in MAGIC_FIELDS:
         raise PolicyError(_lt("Field %s cannot be written.", name))
+    if name.startswith(MCP_SETTING_FIELD_PREFIX):
+        raise PolicyError(_lt("Field %s is a setting of the MCP server, it can only be changed in Odoo.", name))
     if not field_readable(ctx, model_name, name):
         raise PolicyError(_lt("Field %s is hidden via MCP.", name))
     if field.related:
@@ -570,7 +608,7 @@ def check_field_write(ctx, rule, model_name, name, value, allowed, depth):
         ))
     if field.compute and not field.inverse and not field.store and not field.related:
         raise PolicyError(_lt("Field %s is computed and cannot be written.", name))
-    if allowed is None and field.readonly:
+    if allowed is None and field.readonly and not ctx.yolo:
         raise PolicyError(_lt(
             "Field %s is read-only in Odoo. It can only be written when a rule lists it explicitly.", name,
         ))
@@ -601,6 +639,8 @@ def check_action(ctx: McpContext, model_name: str, method: str, records):
     require_model(ctx, model_name, "read")
     if not model_allowed(ctx, model_name, "write"):
         raise access_denied(model_name, "write")
+    if ctx.yolo:
+        return None
     rules = [r for r in user_rules(ctx) if method in r._get_action_names() and model_name in rule_models(ctx, r)]
     if not rules:
         raise PolicyError(_lt("Action %(method)s on model %(model)s is not allowed by the MCP rules.",

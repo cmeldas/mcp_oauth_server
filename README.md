@@ -23,6 +23,7 @@ server, takže se přihlásíš běžným účtem Odoo a nic nekopíruješ. Pro 
   zastavila pravidla MCP nebo práva Odoo. „Chyba“ znamená chybný dotaz, třeba pole, které na modelu
   neexistuje: AI dostane podobné názvy (`product_uom_id` → `uom_id`) a dotaz opraví.
 - **Česky i anglicky** podle jazyka přihlášeného uživatele (Odoo i texty pro AI), viz [Jazyky](#jazyky).
+- **Režim YOLO** pro testovací databáze: AI může všechno, co uživatel v Odoo, viz [Režim YOLO](#režim-yolo).
 
 ## Adresy
 
@@ -308,6 +309,26 @@ Nastavení → MCP → Skrytá pole. Zruš filtr, najdi pole a zapni „Skryté 
 Skryté pole AI klient neuvidí a nejde ho použít ani ve filtru, řazení nebo seskupení. Jinak by šla hodnota
 zjistit zkoušením.
 
+## Režim YOLO
+
+Pro testovací databázi, kde má AI udělat cokoli, co uživatel v Odoo smí (nastavení, instalace modulů,
+technické modely). Zapíná ho jen správce: Nastavení → Uživatelé → uživatel → Přístupová práva → MCP:
+plný přístup (YOLO). Platí hned, i pro už připojené klienty.
+
+- **Co odpadá:** odebírání administrátorských skupin, zákaz technických modelů (`ir.*`, `res.groups`,
+  `res.users`, `res.company`, průvodci…), skrytá pole a pravidla zápisu. Zápis, mazání a akce jdou všude,
+  kam pustí práva Odoo uživatele.
+- **Co zůstává:**
+  - spojení jen pro čtení nezapisuje: zápis musí uživatel povolit na stránce souhlasu (u YOLO je tam
+    zaškrtávátko i bez pravidel), u API klíče scope „MCP – čtení a zápis“;
+  - hesla, tokeny, klíče a tajemství zůstávají skryté (i `smtp_pass` poštovních serverů);
+  - nedostupné jsou modely MCP (`mcp.*`), API klíče, dvoufázové ověření, uložené platební údaje,
+    certifikáty a systémové parametry (`ir.config_parameter`, nastavení jde přes `res.config.settings`);
+  - pole `mcp_*` (přepínač YOLO, skrytá pole, pokyny pro AI) jdou měnit jen v Odoo;
+  - `run_action` dál nevolá `sudo`, `with_user` a další metody ze zakázaného seznamu;
+  - audit a poznámka v chatteru „přes MCP: <klient>, YOLO“.
+- **AI to ví:** pokyny serveru, `whoami` (`"yolo": true`) a stránka souhlasu na režim upozorní.
+
 ## Nástroje
 
 | nástroj | co dělá |
@@ -374,7 +395,7 @@ odoo -d mcp_test --db-filter='^mcp_test$' -i mcp_oauth_server --test-enable --te
      --stop-after-init --http-port=8070 --gevent-port=8073
 ```
 
-48 testů:
+56 testů:
 
 - pomocné funkce OAuth a ochrana proti SSRF;
 - pravidla přístupu, neexistující pole s nabídkou podobných;
@@ -385,7 +406,9 @@ odoo -d mcp_test --db-filter='^mcp_test$' -i mcp_oauth_server --test-enable --te
 - celý tok OAuth přes HTTP: DCR, souhlas, PKCE, rotace a krádež refresh tokenu, CIMD;
 - API klíč;
 - stažení reportu;
-- jazyky: popisy nástrojů, hlášky, pokyny serveru, souhrn pravidla a stránka souhlasu česky i anglicky.
+- jazyky: popisy nástrojů, hlášky, pokyny serveru, souhrn pravidla a stránka souhlasu česky i anglicky;
+- režim YOLO: administrátorská práva a technické modely, zápis bez pravidel, spojení jen pro čtení,
+  tajné údaje a nastavení MCP mimo dosah, přepínač jen pro správce.
 
 ## Instalace
 

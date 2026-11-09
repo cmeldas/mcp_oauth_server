@@ -128,7 +128,8 @@ def record_url(ctx, record) -> str:
 
 
 def client_label(ctx) -> str:
-    return ctx.client_name or ctx.env._("AI client")
+    label = ctx.client_name or ctx.env._("AI client")
+    return f"{label}, YOLO" if ctx.yolo else label
 
 
 def fit_rows(rows: list, extra: dict) -> tuple[list, bool]:
@@ -217,10 +218,14 @@ def tool_whoami(ctx, args):
         "company": {"id": env.company.id, "name": env.company.name, "currency": env.company.currency_id.name},
         "companies": [{"id": c.id, "name": c.name} for c in user.company_ids],
         "access": access,
-        "admin_rights": env._("Administrator rights (Settings, Access Rights, Technical Features) do not apply via MCP."),
+        "admin_rights": env._(
+            "YOLO mode: all Odoo rights of the user apply via MCP, administrator rights and technical models "
+            "included, without write rules. Passwords, tokens and keys stay hidden.") if ctx.yolo else env._(
+            "Administrator rights (Settings, Access Rights, Technical Features) do not apply via MCP."),
+        "yolo": ctx.yolo,
         "connection": {"auth": ctx.auth, "client": ctx.client_name, "scopes": sorted(ctx.scopes)},
         "write_allowed": can_write(ctx),
-        "write_rules": [rule_summary(ctx, rule) for rule in user_rules(ctx)] if can_write(ctx) else [],
+        "write_rules": [rule_summary(ctx, rule) for rule in user_rules(ctx)] if can_write(ctx) and not ctx.yolo else [],
         "pending_proposals": [
             {"id": r.id, "name": r.name, "summary": r.summary}
             for r in env["mcp.rule"].sudo().search([("state", "=", "proposed"), ("proposed_by_id", "=", user.id)])
@@ -253,6 +258,16 @@ def rule_summary(ctx, rule) -> dict:
 def writable_operations(ctx, model_name: str) -> list[str]:
     if not can_write(ctx):
         return []
+    if ctx.yolo:
+        model = ctx.env[model_name]
+        ops = {op for op in ("create", "write", "unlink") if model_allowed(ctx, model_name, op)}
+        if "write" in ops:
+            ops.add("action")
+            if model._active_name:
+                ops.add("archive")
+        if "message_ids" in model._fields:
+            ops.add("note")
+        return sorted(ops)
     ops = set()
     for rule in user_rules(ctx):
         if model_name in rule_models(ctx, rule):
@@ -311,6 +326,14 @@ def writable_field_names(ctx, model_name: str):
     """True = všechna nechráněná pole, množina = vyjmenovaná, None = zápis nepovolen."""
     if not can_write(ctx):
         return None
+    if ctx.yolo:
+        if not model_allowed(ctx, model_name, "write"):
+            return None
+        fields_map = ctx.env[model_name]._fields
+        return {n for n in readable_fields(ctx, model_name)
+                if n not in ("id", "display_name") and not n.startswith("mcp_")
+                and not (fields_map[n].compute and not fields_map[n].store and not fields_map[n].inverse
+                         and not fields_map[n].related)}
     result = None
     for rule in user_rules(ctx):
         if not (rule.perm_write or rule.perm_create) or model_name not in rule_models(ctx, rule):

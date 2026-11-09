@@ -28,7 +28,7 @@ are copied around. Claude Code can also use an API key with an MCP scope.
 * **Audit** of all calls.
 * Texts in **English and Czech**, following the language of the user.
 """,
-    "version": "20.0.1.0.1",
+    "version": "20.0.1.1.0",
     "category": "Productivity",
     "author": "Matouš Čmelík",
     "website": "https://github.com/cmeldas/mcp_oauth_server",

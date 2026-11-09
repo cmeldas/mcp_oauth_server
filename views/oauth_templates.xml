@@ -20,13 +20,23 @@
                     The client returns to an address on this computer (<t t-out="redirect_host"/>). Only allow it if you
                     have just started the connection yourself, e.g. in Claude Code.
                 </div>
+                <div t-if="yolo" class="alert alert-danger small" role="alert">
+                    <strong>YOLO mode is on for your account:</strong> the client can do everything you can do in
+                    Odoo, administration included, without write rules. Only passwords, tokens, keys and the MCP
+                    settings stay out of its reach.
+                </div>
                 <div class="alert alert-light border small" role="status">
-                    <p class="mb-1"><strong>Reading:</strong> everything you can access in Odoo, without administrator
+                    <p class="mb-1" t-if="not yolo"><strong>Reading:</strong> everything you can access in Odoo, without administrator
                     rights. The client will not see passwords, tokens, keys and certificates.</p>
                     <p class="mb-0">Every call is recorded in the audit log (Settings → MCP → Audit).</p>
                 </div>
                 <t t-if="write_requested">
-                    <div class="form-check mb-2" t-if="rules">
+                    <div class="form-check mb-2" t-if="yolo">
+                        <input class="form-check-input" type="checkbox" name="allow_write" value="1" id="mcp_allow_write"/>
+                        <label class="form-check-label" for="mcp_allow_write"><strong>Also allow writing</strong>
+                            (YOLO: everything your Odoo rights allow)</label>
+                    </div>
+                    <div class="form-check mb-2" t-elif="rules">
                         <input class="form-check-input" type="checkbox" name="allow_write" value="1" id="mcp_allow_write"/>
                         <label class="form-check-label" for="mcp_allow_write"><strong>Also allow writing</strong> according to the rules:</label>
                         <ul class="small mt-1 mb-0">

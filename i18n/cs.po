@@ -3114,3 +3114,60 @@ msgstr "přes MCP: %s"
 #: model_terms:ir.ui.view,arch_db:mcp_oauth_server.oauth_consent
 msgid "wants to connect to Odoo"
 msgstr "se chce připojit k Odoo"
+
+#. module: mcp_oauth_server
+#: model_terms:ir.ui.view,arch_db:mcp_oauth_server.oauth_consent
+msgid ""
+"<strong>Also allow writing</strong>\n"
+"                            (YOLO: everything your Odoo rights allow)"
+msgstr ""
+"<strong>Povolit i zápis</strong>\n"
+"                            (YOLO: všechno, co ti dovolují práva v Odoo)"
+
+#. module: mcp_oauth_server
+#: model_terms:ir.ui.view,arch_db:mcp_oauth_server.oauth_consent
+msgid ""
+"<strong>YOLO mode is on for your account:</strong> the client can do everything you can do in\n"
+"                    Odoo, administration included, without write rules. Only passwords, tokens, keys and the MCP\n"
+"                    settings stay out of its reach."
+msgstr ""
+"<strong>Pro tvůj účet je zapnutý režim YOLO:</strong> klient může v Odoo všechno, co\n"
+"                    můžeš ty, i správu systému, bez pravidel zápisu. Mimo jeho dosah zůstanou jen hesla, tokeny, klíče\n"
+"                    a nastavení MCP."
+
+#. module: mcp_oauth_server
+#: model_terms:ir.ui.view,arch_db:mcp_oauth_server.view_users_form_mcp_yolo
+msgid ""
+"<strong>YOLO:</strong> AI clients of this user can do everything the user can do in Odoo,\n"
+"                    administration included, without write rules. Use it only on a test database."
+msgstr ""
+"<strong>YOLO:</strong> AI klienti tohoto uživatele mohou v Odoo všechno, co může on,\n"
+"                    i správu systému, bez pravidel zápisu. Jen pro testovací databázi."
+
+#. module: mcp_oauth_server
+#: model:ir.model.fields,help:mcp_oauth_server.field_res_users__mcp_yolo
+msgid "AI clients of this user work via MCP with all the user's Odoo rights, administrator rights and technical models included, without write rules. Writing still needs a connection that allows it. Passwords, tokens and keys stay hidden; the MCP settings can only be changed in Odoo. Meant for test databases."
+msgstr "AI klienti tohoto uživatele pracují přes MCP se všemi jeho právy v Odoo, i administrátorskými a s technickými modely, bez pravidel zápisu. Zápis pořád vyžaduje spojení, které ho povoluje. Hesla, tokeny a klíče zůstávají skryté, nastavení MCP jde měnit jen v Odoo. Určeno pro testovací databáze."
+
+#. module: mcp_oauth_server
+#. odoo-python
+#: code:addons/mcp_oauth_server/lib/policy.py:0
+msgid "Field %s is a setting of the MCP server, it can only be changed in Odoo."
+msgstr "Pole %s je nastavení serveru MCP, jde ho změnit jen v Odoo."
+
+#. module: mcp_oauth_server
+#: model:ir.model.fields,field_description:mcp_oauth_server.field_res_users__mcp_yolo
+msgid "MCP: Full Access (YOLO)"
+msgstr "MCP: plný přístup (YOLO)"
+
+#. module: mcp_oauth_server
+#. odoo-python
+#: code:addons/mcp_oauth_server/lib/protocol.py:0
+msgid "YOLO mode is on for this user: you work with all their Odoo rights, administration and technical models included, without MCP write rules. Every change takes effect at once: try preview first, say what you are going to change, and archive rather than delete."
+msgstr "Pro tohoto uživatele je zapnutý režim YOLO: pracuješ se všemi jeho právy v Odoo, i se správou systému a technickými modely, bez pravidel zápisu MCP. Každá změna platí hned: nejdřív zkus preview, řekni, co budeš měnit, a raději archivuj než mazej."
+
+#. module: mcp_oauth_server
+#. odoo-python
+#: code:addons/mcp_oauth_server/lib/tools.py:0
+msgid "YOLO mode: all Odoo rights of the user apply via MCP, administrator rights and technical models included, without write rules. Passwords, tokens and keys stay hidden."
+msgstr "Režim YOLO: přes MCP platí všechna práva uživatele v Odoo, i administrátorská a technické modely, bez pravidel zápisu. Hesla, tokeny a klíče zůstávají skryté."
