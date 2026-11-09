@@ -3113,3 +3113,9 @@ msgstr ""
 #: code:addons/mcp_oauth_server/lib/tools.py:0
 msgid "YOLO mode: all Odoo rights of the user apply via MCP, administrator rights and technical models included, without write rules. Passwords, tokens and keys stay hidden."
 msgstr ""
+
+#. module: mcp_oauth_server
+#. odoo-python
+#: code:addons/mcp_oauth_server/lib/tools.py:0
+msgid "Action %(method)s on model %(model)s saves by itself (it installs, updates or removes modules), so it cannot be previewed. Run it without preview."
+msgstr ""

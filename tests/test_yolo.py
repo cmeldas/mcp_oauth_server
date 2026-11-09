@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+from unittest.mock import patch
 
 from odoo.exceptions import AccessError
 from odoo.fields import Command
@@ -103,6 +104,31 @@ class TestYolo(TransactionCase):
         self.assertIsNone(data["how_to_get_write_access"], "v YOLO se pravidla nenavrhují")
         self.assertIn("YOLO mode is on", protocol.instructions(ctx))
         self.assertNotIn("YOLO", protocol.instructions(self.ctx(yolo=False)))
+
+    def test_module_operations_run_outside_the_savepoint(self):
+        """Instalace modulu sama commituje: uvnitř savepointu ji Odoo odmítne, nanečisto nejde."""
+        self.assertTrue(tools.commits_by_itself("ir.module.module", "button_immediate_install"))
+        self.assertTrue(tools.commits_by_itself("res.config.settings", "execute"))
+        self.assertFalse(tools.commits_by_itself("ir.module.module", "button_install"))
+        self.assertFalse(tools.commits_by_itself("res.partner", "execute"))
+        module = self.env["ir.module.module"].search([("name", "=", "base")])
+        ctx = self.ctx()
+        _result, status, message = self.call(ctx, "run_action", model="ir.module.module", ids=module.ids,
+                                             method="button_immediate_upgrade", preview=True)
+        self.assertEqual(status, "denied")
+        self.assertIn("cannot be previewed", message)
+        depth = {}
+
+        def fake(records):
+            depth["inside"] = len(records.env.transaction._state_stack__)
+            return True
+
+        depth["outside"] = len(self.env.transaction._state_stack__)
+        with patch.object(type(self.env["ir.module.module"]), "button_immediate_upgrade", fake):
+            _result, status, message = self.call(ctx, "run_action", model="ir.module.module", ids=module.ids,
+                                                 method="button_immediate_upgrade")
+        self.assertEqual(status, "ok", message)
+        self.assertEqual(depth["inside"], depth["outside"], "bez savepointu nástroje")
 
     def test_only_administrators_switch_it(self):
         clerk = self.env["res.users"].create({

@@ -327,6 +327,9 @@ plný přístup (YOLO). Platí hned, i pro už připojené klienty.
   - pole `mcp_*` (přepínač YOLO, skrytá pole, pokyny pro AI) jdou měnit jen v Odoo;
   - `run_action` dál nevolá `sudo`, `with_user` a další metody ze zakázaného seznamu;
   - audit a poznámka v chatteru „přes MCP: <klient>, YOLO“.
+  - instalace, aktualizace a odinstalace modulů (`ir.module.module` `button_immediate_*`) a uložení
+    nastavení (`res.config.settings` `execute`) se samy commitují: běží mimo savepoint nástroje a nejdou
+    zkusit nanečisto (`preview`), jen rovnou provést.
 - **AI to ví:** pokyny serveru, `whoami` (`"yolo": true`) a stránka souhlasu na režim upozorní.
 
 ## Nástroje
@@ -395,7 +398,7 @@ odoo -d mcp_test --db-filter='^mcp_test$' -i mcp_oauth_server --test-enable --te
      --stop-after-init --http-port=8070 --gevent-port=8073
 ```
 
-56 testů:
+57 testů:
 
 - pomocné funkce OAuth a ochrana proti SSRF;
 - pravidla přístupu, neexistující pole s nabídkou podobných;
@@ -408,7 +411,7 @@ odoo -d mcp_test --db-filter='^mcp_test$' -i mcp_oauth_server --test-enable --te
 - stažení reportu;
 - jazyky: popisy nástrojů, hlášky, pokyny serveru, souhrn pravidla a stránka souhlasu česky i anglicky;
 - režim YOLO: administrátorská práva a technické modely, zápis bez pravidel, spojení jen pro čtení,
-  tajné údaje a nastavení MCP mimo dosah, přepínač jen pro správce.
+  tajné údaje a nastavení MCP mimo dosah, přepínač jen pro správce, instalace modulu mimo savepoint.
 
 ## Instalace
 

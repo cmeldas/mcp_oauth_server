@@ -124,7 +124,6 @@ class McpController(http.Controller):
         if not ctx.grant_id:
             return
         try:
-            with request.env.cr.savepoint():
-                request.env["mcp.oauth.grant"].sudo().browse(ctx.grant_id)._touch(client_ip())
+            request.env["mcp.oauth.grant"].sudo().browse(ctx.grant_id)._touch(client_ip())
         except Exception:  # noqa: BLE001
             _logger.warning("Could not record the last use of the MCP connection", exc_info=True)

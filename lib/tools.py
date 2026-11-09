@@ -823,11 +823,25 @@ def summarize_action(ctx, value):
     return summary
 
 
+def commits_by_itself(model_name, method) -> bool:
+    """Metody, které samy commitují transakci: instalace, aktualizace a odinstalace modulů a uložení
+    nastavení, které modul instaluje. Uvnitř savepointu je Odoo odmítne („Pending savepoints not
+    released“), proto běží mimo něj (`call_tool`) a nejdou vyzkoušet nanečisto."""
+    return isinstance(method, str) and (
+        (model_name == "ir.module.module" and method.startswith("button_immediate_"))
+        or (model_name == "res.config.settings" and method == "execute")
+    )
+
+
 def tool_run_action(ctx, args):
     model = require_model(ctx, args.get("model"))
     records = browse_existing(model, ids_argument(args))
     method = args.get("method")
     check_action(ctx, model._name, method, records)
+    if args.get("preview") and commits_by_itself(model._name, method):
+        raise PolicyError(_lt("Action %(method)s on model %(model)s saves by itself (it installs, updates or removes "
+                              "modules), so it cannot be previewed. Run it without preview.",
+                              method=method, model=model._name))
     function = getattr(records, method, None)
     if not callable(function):
         raise PolicyError(_lt("Model %(model)s has no method %(method)s.", model=model._name, method=method))
@@ -1161,6 +1175,16 @@ def call_tool(ctx, name: str, arguments) -> tuple[dict, str, str | None]:
         if tool.readonly:
             with closing(cr.savepoint()):
                 data = tool.handler(ctx, arguments)
+        elif (tool.name == "run_action" and not arguments.get("preview")
+              and commits_by_itself(arguments.get("model"), arguments.get("method"))):
+            # Odoo samo commituje (moduly): bez savepointu; chyba po začátku operace vrátí celou transakci
+            try:
+                data = tool.handler(ctx, arguments)
+            except PolicyError:
+                raise  # odmítnuto dřív, než se cokoli změnilo
+            except Exception:
+                cr.rollback()
+                raise
         else:
             with cr.savepoint():
                 data = tool.handler(ctx, arguments)

@@ -144,6 +144,12 @@ class TestMcpHttp(HttpCase):
         self.assertEqual(rule.state, "proposed")
         self.assertIn(f"/odoo/action-mcp_oauth_server.action_mcp_rule/{rule.id}", result["content"][0]["text"])
         self.assertTrue(self.env["mcp.audit.log"].search_count([("tool", "=", "search_read"), ("status", "=", "denied")]))
+        grant = self.env["mcp.oauth.grant"].search([("user_id", "=", self.user.id)])
+        self.assertTrue(grant.last_used, "první požadavek poznamená použití")
+        first = grant.last_used
+        self.call_tool(access, "search_read", model="res.partner", limit=1)
+        grant.invalidate_recordset()
+        self.assertEqual(grant.last_used, first, "další požadavky do pěti minut řádek nepřepisují")
 
     def test_write_after_consent(self):
         self.env["mcp.rule"].create({

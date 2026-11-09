@@ -3171,3 +3171,9 @@ msgstr "Pro tohoto uživatele je zapnutý režim YOLO: pracuješ se všemi jeho 
 #: code:addons/mcp_oauth_server/lib/tools.py:0
 msgid "YOLO mode: all Odoo rights of the user apply via MCP, administrator rights and technical models included, without write rules. Passwords, tokens and keys stay hidden."
 msgstr "Režim YOLO: přes MCP platí všechna práva uživatele v Odoo, i administrátorská a technické modely, bez pravidel zápisu. Hesla, tokeny a klíče zůstávají skryté."
+
+#. module: mcp_oauth_server
+#. odoo-python
+#: code:addons/mcp_oauth_server/lib/tools.py:0
+msgid "Action %(method)s on model %(model)s saves by itself (it installs, updates or removes modules), so it cannot be previewed. Run it without preview."
+msgstr "Akce %(method)s na modelu %(model)s se ukládá sama (instaluje, aktualizuje nebo odebírá moduly), proto ji nejde vyzkoušet nanečisto. Spusť ji bez preview."

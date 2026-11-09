@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
+from odoo.tools import SQL
 
 from odoo.tools.translate import LazyTranslate
 
@@ -104,11 +105,22 @@ class McpOauthGrant(models.Model):
         return grant._issue_tokens()
 
     def _touch(self, ip: str | None):
-        """Poznamenat poslední použití, nejvýš jednou za pět minut (zápis je v samostatné transakci)."""
+        """Poznamenat poslední použití (i s adresou), nejvýš jednou za pět minut, v samostatné krátké transakci.
+
+        claude.ai posílá víc požadavků najednou, každý z jiné adresy: zápis do stejného řádku v transakci
+        požadavku pak koliduje (could not serialize access due to concurrent update). Řádek, který právě
+        zapisuje jiný požadavek, se přeskočí.
+        """
         now = fields.Datetime.now()
-        stale = self.filtered(lambda g: not g.last_used or g.last_used < now - TOUCH_INTERVAL or g.last_ip != ip)
-        if stale:
-            stale.write({"last_used": now, "last_ip": ip})
+        with self.env.registry.cursor() as cr:
+            cr.execute(SQL(
+                """UPDATE mcp_oauth_grant SET last_used = %(now)s, last_ip = %(ip)s
+                    WHERE id IN (SELECT id FROM mcp_oauth_grant
+                                  WHERE id = ANY(%(ids)s) AND (last_used IS NULL OR last_used < %(stale)s)
+                                    FOR UPDATE SKIP LOCKED)""",
+                now=now, ip=ip, ids=self.ids, stale=now - TOUCH_INTERVAL,
+            ))
+        self.invalidate_recordset(["last_used", "last_ip"])
 
     @api.autovacuum
     def _gc_tokens(self):
