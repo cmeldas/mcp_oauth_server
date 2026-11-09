@@ -230,7 +230,7 @@ def tool_whoami(ctx, args):
             {"id": r.id, "name": r.name, "summary": r.summary}
             for r in env["mcp.rule"].sudo().search([("state", "=", "proposed"), ("proposed_by_id", "=", user.id)])
         ],
-        "how_to_get_write_access": env._(write_hint(ctx)),
+        "how_to_get_write_access": None if ctx.yolo and can_write(ctx) else env._(write_hint(ctx)),
         "tools_disabled_in_odoo": sorted(name for name in tools_by_name(ctx) if not tool_allowed(ctx, name)),
         "odoo": {"version": release.version, "url": ctx.base_url, "database": env.cr.dbname},
     }

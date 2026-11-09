@@ -100,6 +100,7 @@ class TestYolo(TransactionCase):
         data = json.loads(result["content"][0]["text"])
         self.assertIs(data["yolo"], True)
         self.assertIn("YOLO mode", data["admin_rights"])
+        self.assertIsNone(data["how_to_get_write_access"], "v YOLO se pravidla nenavrhují")
         self.assertIn("YOLO mode is on", protocol.instructions(ctx))
         self.assertNotIn("YOLO", protocol.instructions(self.ctx(yolo=False)))
 
